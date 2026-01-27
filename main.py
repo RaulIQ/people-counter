@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from ultralytics import YOLO
 import cv2
 import numpy as np
@@ -7,6 +8,8 @@ import uuid
 import os
 
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # создаём папки
 os.makedirs("uploads", exist_ok=True)

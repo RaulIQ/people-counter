@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>People Counter</title>
+<style>
+  #canvas { border: 1px solid black; cursor: crosshair; }
+</style>
+</head>
+<body>
+<h2>People Counter</h2>
+<input type="file" id="fileInput"><br><br>
+<canvas id="canvas"></canvas><br><br>
+<button id="sendBtn">Отправить</button>
+<p id="result"></p>
+
+<script>
+let canvas = document.getElementById('canvas');
+let ctx = canvas.getContext('2d');
+let img = new Image();
+let rect = {};
+let drag = false;
+
+document.getElementById('fileInput').addEventListener('change', (e)=>{
+    let file = e.target.files[0];
+    if (!file) return;
+    let reader = new FileReader();
+    reader.onload = () => {
+        img.src = reader.result;
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img,0,0);
+        }
+    }
+    reader.readAsDataURL(file);
+});
+
+// рисуем прямоугольник
+canvas.addEventListener('mousedown', e => {
+    rect.startX = e.offsetX;
+    rect.startY = e.offsetY;
+    drag = true;
+});
+canvas.addEventListener('mousemove', e => {
+    if (!drag) return;
+    let x = rect.startX;
+    let y = rect.startY;
+    let w = e.offsetX - x;
+    let h = e.offsetY - y;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0);
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x,y,w,h);
+    rect.w = w;
+    rect.h = h;
+    rect.x = x;
+    rect.y = y;
+});
+canvas.addEventListener('mouseup', e => { drag = false; });
+
+// отправка на сервер
+document.getElementById('sendBtn').addEventListener('click', async ()=>{
+    let fileInput = document.getElementById('fileInput');
+    if (!fileInput.files[0] || !rect.w || !rect.h) { alert("Загрузите фото и выделите зону!"); return; }
+
+    let formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    formData.append("x1", Math.round(rect.x));
+    formData.append("y1", Math.round(rect.y));
+    formData.append("x2", Math.round(rect.x + rect.w));
+    formData.append("y2", Math.round(rect.y + rect.h));
+
+    let res = await fetch("/process-image", { method: "POST", body: formData });
+    let data = await res.json();
+    document.getElementById('result').innerText = "Количество людей: " + data.guests_count;
+});
+
+</script>
+</body>
+</html>
