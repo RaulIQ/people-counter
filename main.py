@@ -11,6 +11,30 @@ app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+import json
+from datetime import datetime
+
+HISTORY_FILE = "history.json"
+
+
+def save_history(record: dict):
+    # если файла нет — создаём
+    if not os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "w") as f:
+            json.dump([], f)
+
+    # читаем существующую историю
+    with open(HISTORY_FILE, "r") as f:
+        history = json.load(f)
+
+    # добавляем новую запись
+    history.append(record)
+
+    # сохраняем обратно
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f, indent=2, ensure_ascii=False)
+
+
 # создаём папки
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("results", exist_ok=True)
@@ -75,6 +99,16 @@ async def process_image(
     # сохраняем результат
     result_path = f"results/{image_id}.jpg"
     cv2.imwrite(result_path, image)
+
+    history_record = {
+        "id": image_id,
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "people_count": count,
+        "result_image": result_path
+    }
+
+    # сохраняем
+    save_history(history_record)
 
     return JSONResponse({
         "guests_count": count,
