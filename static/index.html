@@ -14,6 +14,9 @@
 <button id="sendBtn">Отправить</button>
 <p id="result"></p>
 
+<br>
+<button onclick="downloadReport()">Скачать Excel-отчёт</button>
+
 <script>
 let canvas = document.getElementById('canvas');
 let ctx = canvas.getContext('2d');
@@ -76,6 +79,10 @@ document.getElementById('sendBtn').addEventListener('click', async ()=>{
     let data = await res.json();
     document.getElementById('result').innerText = "Количество людей: " + data.guests_count;
 });
+
+function downloadReport() {
+    window.location.href = "/export/excel";
+}
 
 </script>
 </body>

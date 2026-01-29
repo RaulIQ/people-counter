@@ -7,12 +7,17 @@ import numpy as np
 import uuid
 import os
 
+from openpyxl import Workbook
+from openpyxl.styles import Font
+import json
+import io
+import json
+from datetime import datetime
+
+
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-import json
-from datetime import datetime
 
 HISTORY_FILE = "history.json"
 
@@ -34,6 +39,38 @@ def save_history(record: dict):
     with open(HISTORY_FILE, "w") as f:
         json.dump(history, f, indent=2, ensure_ascii=False)
 
+def generate_excel_report_bytes():
+    if not os.path.exists(HISTORY_FILE):
+        return None
+
+    with open(HISTORY_FILE, "r") as f:
+        history = json.load(f)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Guests Report"
+
+    headers = ["Дата и время", "Количество гостей", "Результат"]
+    ws.append(headers)
+
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    for item in history:
+        ws.append([
+            item["timestamp"],
+            item["people_count"],
+            item["result_image"]
+        ])
+
+    # сохраняем в память, а не в файл
+    stream = io.BytesIO()
+    wb.save(stream)
+    stream.seek(0)
+
+    return stream
+
+
 
 # создаём папки
 os.makedirs("uploads", exist_ok=True)
@@ -45,6 +82,24 @@ model = YOLO("yolov8n.pt")
 
 def is_inside(cx, cy, x1, y1, x2, y2):
     return x1 <= cx <= x2 and y1 <= cy <= y2
+
+from fastapi.responses import StreamingResponse
+
+
+@app.get("/export/excel")
+def export_excel():
+    stream = generate_excel_report_bytes()
+
+    if stream is None:
+        return JSONResponse({"error": "История пуста"})
+
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=guests_report.xlsx"
+        }
+    )
 
 
 @app.post("/process-image")
