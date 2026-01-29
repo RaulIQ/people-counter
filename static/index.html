@@ -64,20 +64,38 @@ canvas.addEventListener('mousemove', e => {
 canvas.addEventListener('mouseup', e => { drag = false; });
 
 // отправка на сервер
-document.getElementById('sendBtn').addEventListener('click', async ()=>{
+document.getElementById('sendBtn').addEventListener('click', async () => {
     let fileInput = document.getElementById('fileInput');
-    if (!fileInput.files[0] || !rect.w || !rect.h) { alert("Загрузите фото и выделите зону!"); return; }
+
+    if (!fileInput.files[0]) {
+        alert("Загрузите фото!");
+        return;
+    }
 
     let formData = new FormData();
     formData.append("file", fileInput.files[0]);
-    formData.append("x1", Math.round(rect.x));
-    formData.append("y1", Math.round(rect.y));
-    formData.append("x2", Math.round(rect.x + rect.w));
-    formData.append("y2", Math.round(rect.y + rect.h));
 
-    let res = await fetch("/process-image", { method: "POST", body: formData });
+    // если зона выделена — отправляем координаты
+    if (rect.w && rect.h) {
+        let x1 = Math.round(rect.x);
+        let y1 = Math.round(rect.y);
+        let x2 = Math.round(rect.x + rect.w);
+        let y2 = Math.round(rect.y + rect.h);
+
+        formData.append("x1", x1);
+        formData.append("y1", y1);
+        formData.append("x2", x2);
+        formData.append("y2", y2);
+    }
+
+    let res = await fetch("/process-image", {
+        method: "POST",
+        body: formData
+    });
+
     let data = await res.json();
-    document.getElementById('result').innerText = "Количество людей: " + data.guests_count;
+    document.getElementById('result').innerText =
+        "Количество гостей: " + data.guests_count;
 });
 
 function downloadReport() {

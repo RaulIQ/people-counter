@@ -6,6 +6,8 @@ import cv2
 import numpy as np
 import uuid
 import os
+from typing import Optional
+
 
 from openpyxl import Workbook
 from openpyxl.styles import Font
@@ -101,15 +103,16 @@ def export_excel():
         }
     )
 
-
 @app.post("/process-image")
 async def process_image(
     file: UploadFile = File(...),
-    x1: int = Form(...),
-    y1: int = Form(...),
-    x2: int = Form(...),
-    y2: int = Form(...)
+    x1: Optional[int] = Form(None),
+    y1: Optional[int] = Form(None),
+    x2: Optional[int] = Form(None),
+    y2: Optional[int] = Form(None)
 ):
+    use_zone = all(v is not None for v in [x1, y1, x2, y2])
+
     # сохраняем изображение
     image_id = str(uuid.uuid4())
     image_path = f"uploads/{image_id}.jpg"
@@ -133,14 +136,24 @@ async def process_image(
                 cy = (y1b + y2b) // 2
 
                 # рисуем bbox
-                cv2.rectangle(image, (x1b, y1b), (x2b, y2b), (0, 255, 0), 2)
+                if use_zone:
+                    cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
-                if is_inside(cx, cy, x1, y1, x2, y2):
+
+                if not use_zone:
+                    # считаем всех людей
                     count += 1
-                    cv2.circle(image, (cx, cy), 5, (0, 0, 255), -1)
+                else:
+                    # считаем только в зоне
+                    if is_inside(cx, cy, x1, y1, x2, y2):
+                        count += 1
+                        cv2.circle(image, (cx, cy), 5, (0, 0, 255), -1)
+
 
     # рисуем зону стола
-    cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+    if use_zone:
+        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
     cv2.putText(
         image,
         f"Guests: {count}",
